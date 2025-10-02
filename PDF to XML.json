@@ -1,0 +1,459 @@
+{
+  "name": "PDF to XML",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "{{ $env.GOOGLE_DRIVE_INPUT_FOLDER_ID }}",
+          "mode": "list",
+          "cachedResultName": "Name of Import Folder",
+          "cachedResultUrl": ""
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "1e879230-63b5-4231-a7fa-c95cc9d6a629",
+      "name": "Google Drive Trigger",
+      "retryOnFail": false,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "__REPLACE_WITH_YOUR_CREDENTIAL_ID__",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "binaryPropertyName": "={{ $json.name }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        384,
+        0
+      ],
+      "id": "78c0b499-b0fd-4535-aa14-92c5978ac3b1",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "__REPLACE_WITH_YOUR_CREDENTIAL_ID__",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "={{ $json.name }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "e047eac1-fd70-4160-bc9d-e6eab3a1c633",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "mode": "jsonToxml",
+        "dataPropertyName": "={{ $('Download file').item.json.name }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        832,
+        0
+      ],
+      "id": "0df53a59-22bb-4820-8a14-67b04d9ca5c3",
+      "name": "XML"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "=output",
+        "name": "={{ $('Download file').item.json.name.replace(/\\.pdf$/, '.xml') }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "{{ $env.GOOGLE_DRIVE_INPUT_FOLDER_ID }}",
+          "mode": "list",
+          "cachedResultName": "Name of export folder",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1632,
+        0
+      ],
+      "id": "787531f0-e6d8-4a74-9757-413ec4f16798",
+      "name": "Upload file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "__REPLACE_WITH_YOUR_CREDENTIAL_ID__",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "output",
+        "binaryPropertyName": "=output",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1360,
+        0
+      ],
+      "id": "d029f804-f0ad-4df6-859f-1db849dc1332",
+      "name": "Convert to File1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an expert XML transformer and data mapping specialist. Your task is to perform a strict, one-to-one transformation of the provided unstructured XML invoice data into a valid, complete Cross-Industry Invoice (CII) XML standard document.\n\nThe output MUST conform to the full CII specification and MUST strictly follow the structure and namespace definition provided in the blueprint below. Use the blueprint only for structure; populate all fields with data extracted from the INPUT XML.\n\nYour output MUST be **XML only**. Do not include any natural language explanations, code block wrappers (like ```xml), or surrounding text.\n\n---\nCII XML Blueprint (Version 2.0 - ISO 20022 based):\n---\n\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rsm:CrossIndustryInvoice \n    xmlns:rsm=\"urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100\" \n    xmlns:udt=\"urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100\"\n    xmlns:qdt=\"urn:un:unece:uncefact:data:standard:QualifiedDataType:100\"\n    xmlns:ram=\"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100\"\n    xmlns:alt=\"urn:un:unece:uncefact:data:standard:AttributeValuePair:100\">\n\n    <rsm:ExchangedDocumentContext>\n        <ram:BusinessProcessSpecifiedDocumentContextParameter>\n            <ram:ID>A1</ram:ID>\n        </ram:BusinessProcessSpecifiedDocumentContextParameter>\n        <ram:GuidelineSpecifiedDocumentContextParameter>\n            <ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xoev-de:kosit:standard:xrechnung_2</ram:ID>\n        </ram:GuidelineSpecifiedDocumentContextParameter>\n    </rsm:ExchangedDocumentContext>\n\n    <rsm:ExchangedDocument>\n        <ram:ID>[INVOICE_ID]</ram:ID>\n        <udt:TypeCode>380</udt:TypeCode>\n        <ram:IssueDateTime>\n            <udt:DateTimeString format=\"102\">[INVOICE_DATE_YYYYMMDD]</udt:DateTimeString>\n        </ram:IssueDateTime>\n    </rsm:ExchangedDocument>\n\n    <rsm:SupplyChainTradeTransaction>\n        \n        <!-- Document Totals -->\n        <ram:ApplicableHeaderTradeAgreement>\n            <!-- Terms of Payment -->\n            <ram:SpecifiedTradePaymentTerms>\n                <ram:Description>[PAYMENT_TERMS_DESCRIPTION]</ram:Description>\n            </ram:SpecifiedTradePaymentTerms>\n            \n            <!-- Seller -->\n            <ram:SellerTradeParty>\n                <ram:Name>[SELLER_NAME]</ram:Name>\n                <ram:ID>[SELLER_TAX_ID]</ram:ID>\n                <ram:PostalTradeAddress>\n                    <udt:Postcode>[SELLER_POSTAL_CODE]</udt:Postcode>\n                    <ram:LineOne>[SELLER_STREET]</ram:LineOne>\n                    <ram:CityName>[SELLER_CITY]</ram:CityName>\n                    <qdt:CountryID>AT</qdt:CountryID>\n                </ram:PostalTradeAddress>\n            </ram:SellerTradeParty>\n            \n            <!-- Buyer -->\n            <ram:BuyerTradeParty>\n                <ram:Name>[BUYER_NAME]</ram:Name>\n                <ram:PostalTradeAddress>\n                    <udt:Postcode>[BUYER_POSTAL_CODE]</udt:Postcode>\n                    <ram:LineOne>[BUYER_STREET]</ram:LineOne>\n                    <ram:CityName>[BUYER_CITY]</ram:CityName>\n                    <qdt:CountryID>AT</qdt:CountryID>\n                </ram:PostalTradeAddress>\n            </ram:BuyerTradeParty>\n        </ram:ApplicableHeaderTradeAgreement>\n\n        <!-- Totals and Taxes -->\n        <ram:ApplicableHeaderTradeDelivery>\n            <!-- Invoice Total -->\n        </ram:ApplicableHeaderTradeDelivery>\n        \n        <ram:ApplicableHeaderTradeSettlement>\n            <!-- Payment Data -->\n            <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>\n\n            <!-- Tax Breakdown -->\n            <ram:ApplicableTradeTax>\n                <udt:CalculatedAmount>[TAX_AMOUNT]</udt:CalculatedAmount>\n                <udt:TypeCode>VAT</udt:TypeCode>\n                <udt:BasisAmount>[TAX_BASIS_AMOUNT_NET]</udt:BasisAmount>\n                <ram:CategoryCode>S</ram:CategoryCode>\n                <udt:RateApplicablePercent>[TAX_RATE]</udt:RateApplicablePercent>\n            </ram:ApplicableTradeTax>\n\n            <!-- Monetary Totals -->\n            <ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n                <udt:LineTotalAmount>[NET_TOTAL_AMOUNT]</udt:LineTotalAmount>\n                <udt:TaxTotalAmount currencyID=\"EUR\">[TAX_TOTAL_AMOUNT]</udt:TaxTotalAmount>\n                <udt:GrandTotalAmount currencyID=\"EUR\">[GRAND_TOTAL_AMOUNT_GROSS]</udt:GrandTotalAmount>\n                <udt:DuePayableAmount currencyID=\"EUR\">[GRAND_TOTAL_AMOUNT_GROSS]</udt:DuePayableAmount>\n            </ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n        </ram:ApplicableHeaderTradeSettlement>\n\n        <!-- Line Item 1 -->\n        <ram:IncludedSupplyChainTradeLineItem>\n            <ram:AssociatedDocumentLineDocument>\n                <ram:LineID>1</ram:LineID>\n            </ram:AssociatedDocumentLineDocument>\n            <ram:SpecifiedTradeProduct>\n                <ram:Name>[LINE_ITEM_1_DESCRIPTION]</ram:Name>\n            </ram:SpecifiedTradeProduct>\n            <ram:SpecifiedLineTradeAgreement>\n                <ram:GrossPriceProductTradePrice>\n                    <udt:ChargeAmount>[LINE_ITEM_1_UNIT_PRICE_GROSS]</udt:ChargeAmount>\n                </ram:GrossPriceProductTradePrice>\n            </ram:SpecifiedLineTradeAgreement>\n            <ram:SpecifiedLineTradeDelivery>\n                <ram:BilledQuantity unitCode=\"KGM\">1</ram:BilledQuantity>\n            </ram:SpecifiedLineTradeDelivery>\n            <ram:SpecifiedLineTradeSettlement>\n                <ram:ApplicableTradeTax>\n                    <udt:RateApplicablePercent>20</udt:RateApplicablePercent>\n                </ram:ApplicableTradeTax>\n                <ram:SpecifiedTradeSettlementLineMonetarySummation>\n                    <udt:LineTotalAmount>[LINE_ITEM_1_TOTAL_GROSS]</udt:LineTotalAmount>\n                </ram:SpecifiedTradeSettlementLineMonetarySummation>\n            </ram:SpecifiedLineTradeSettlement>\n        </ram:IncludedSupplyChainTradeLineItem>\n        <!-- Add more ram:IncludedSupplyChainTradeLineItem blocks as needed for multi-line invoices -->\n\n    </rsm:SupplyChainTradeTransaction>\n</rsm:CrossIndustryInvoice>\n\n---\nEND OF CII XML Blueprint\n---\n\n{{ $json.data }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1008,
+        0
+      ],
+      "id": "4616e198-f349-43f7-be71-49abb821c18e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        912,
+        224
+      ],
+      "id": "1d9d6447-98fa-465e-847d-bf785c37996a",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "__REPLACE_WITH_YOUR_GEMINI_API_ID__",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "filter": {
+          "driveId": {
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "value": "__REPLACE_WITH_FOLDER_ID__",
+            "mode": "list",
+            "cachedResultName": "Example Invoices",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/__REPLACE_WITH_FOLDER_ID__"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        176,
+        0
+      ],
+      "id": "0a83718e-a7b3-464f-8ae6-f04256048322",
+      "name": "Search files and folders",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "__REPLACE_WITH_YOUR_CREDENTIAL_ID__",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Upload Trigger \n**Triggers when a new file is uploaded the chosen folder**",
+        "width": 192,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -176,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "dd030763-474d-4d77-85f6-02dc18499375",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Search file\n**Searches the folder for new uploaded files**",
+        "width": 192,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        80,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "240e9dba-0b4f-4785-a43d-2d2d7c1bc560",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Download \n**Downloads the newly added file**",
+        "width": 192,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        320,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "bf934275-0966-4d34-9bb0-a0b2ecf171a6",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Extract Data \n**Extract the data from pdf for further processing**",
+        "width": 192,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        528,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "bc4ec494-2437-4767-80df-15c45abd4e6d",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Transform \n**Transforms the extracted data to XML**",
+        "width": 192,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        736,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "eed044e7-7678-4186-a085-b5eca8b64d9e",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## AI Agent \n**Turns the XML data into the correct CII standard format**",
+        "width": 192,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1008,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "89deb686-1e8e-43b9-832e-7bb2d621f469",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## Convert output \n**Converts the AI Agent's output into standard text**",
+        "width": 208,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1264,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "4f632c88-bf3a-4544-8f20-41261794eae0",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## Upload output \n**Upload the finished XML file, in correct format, to the chosen folder**",
+        "width": 192,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1536,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "9dcd1f9e-61ca-4547-8a22-3d3177fe72ec",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "test_session",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1104,
+        224
+      ],
+      "id": "fdd5c695-421b-49de-bd58-bc51d9fd040a",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XML": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File1": {
+      "main": [
+        [
+          {
+            "node": "Upload file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Convert to File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "f7e18081-3405-4b89-ae94-f9bad47f2e14",
+  "meta": {
+    "instanceId": "__REPLACE_WITH_INSTANCE_ID__"
+  },
+  "id": "rLkJJ1XSNibY3AvX",
+  "tags": []
+}
